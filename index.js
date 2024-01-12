@@ -2,6 +2,7 @@ const express = require('express')
 const app = express()
 const port = 5000
 const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
 
 const config = require('./config/key');
 
@@ -12,6 +13,7 @@ app.use(bodyParser.urlencoded({extended: true}));
 
 // application/json
 app.use(bodyParser.json());
+app.use(cookieParser());
 
 const mongoose = require('mongoose')
 mongoose.connect(config.mongoURI, {
@@ -35,7 +37,7 @@ app.post('/register', (req, res) => {
     })
 })
 
-app.post('./login', (req, res) => {
+app.post('/login', (req, res) => {
     
     // 요청된 이메일을 데이터베이스에서 있는지 찾는다.
     User.findOne({email: req.body.email}, (err, user) => {
@@ -54,7 +56,21 @@ app.post('./login', (req, res) => {
                     message: "비밀번호가 틀렸습니다." 
                 })
 
-            // 비밀번호 확인되면 토큰 생성
+            // 비밀번호까지 맞다면 토큰을 생성하기
+            user.generateToken((err, user) => {
+                if(err) return res.status(400).send(err); // 클라이언트에게 에러 전달
+
+                // 토큰을 저장 어디에? 쿠키, 로컬스토리지 등등 가능
+                // 어디에 저장하는게 안전한지는 논란이 많음 일단 쿠키에 저장
+                // 쿠키에 저장하기 위해서는 라이브러리 설치
+                // bodyParser처럼 express에서 제공하는 cookie-Parser
+
+                // 이렇게 해주면 x_auth라는 이름에 토큰이 들어감
+                // x_auth 말고 다른 이름도 가능
+                res.cookie("x_auth", user.token)
+                    .status(200)
+                    .json({loginSuccess: true, userId: user._id})
+            })
         })
     })
 })
